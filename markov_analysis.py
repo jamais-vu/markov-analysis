@@ -1,4 +1,4 @@
-'''
+"""
  Exercise 13.8. Markov analysis:
 
  1. Write a program to read a text from a file and perform Markov analysis. The 
@@ -30,12 +30,15 @@
  You should attempt this exercise before you go on; then you can can download my
  solution from http://thinkpython2.com/code/markov.py. You will also need http:
  //thinkpython2.com/code/emma.txt.
-'''
+"""
 
 import random
 import string
+import funcy
+import collections
 
-'''
+
+"""
     idea:
     mapping of n-tuple (of n prefixes) to some collection that has suffixes with 
     their respective frequencies
@@ -57,127 +60,190 @@ import string
     after finishing:
     not sure why i ever thought of using a set of suffixes instead of a list,
     since that would even preserve relative frequencies!
-'''
+"""
 
-def mashup(prefix_length, text_length, *titles):
-    '''
-    Generates random text using two or more books as source material.
 
-    TODO: process_file does not properly skip the Project Gutenberg header
-          (see skip_gutenberg_header for more information)
+def mashup(n, text_length, use_words, *files):
+    """Generates a string of random words in the style of some given text files.
 
-    prefix_length: int, the number of prefix words to use
-    text_length: int, the length of the random text
-    titles: strings, titles of the source books
-    '''
+    Generates a string of random text of text_length words from user-specified 
+    text files. Words are generated one by one, and each subsequent word is 
+    randomly chosen from a probability distribution of which words in the source
+    texts tend to follow the previous n words (referred to as an n-gram).
+
+    Parameters:
+        n : int
+            The n-gram length (i.e., the number of preceding words to consider).
+        text_length : int
+            The number of words of random text to generate.
+        use_words : bool
+            Whether to use words or characters as the basic unit of the n-grams.
+            True will use words, False will use characters. 
+        files: str
+            The filename(s) of the source text(s).
+    
+    Returns:
+        str
+            The generated random text.
+    """
     word_list = []
-    for title in titles:
+    for file in files:
         # WARNING: skip_header only works for emma.txt, Project Gutenberg books
         #          do NOT have a standard header format
-        word_list = word_list + process_file(title, skip_header=False)
-    prefixes = prefix_map(word_list, prefix_length)
-    return list_to_string(random_text(prefixes, prefix_length, text_length))
+        word_list = word_list + file_to_list(file, skip_header=False)
+    ngrams = make_ngram_map(word_list, n)
+    return generate_random_string(ngrams, n, text_length)
 
+def generate_random_string(ngram_map, n, text_length):
+    """Returns a string of words randomly selected by preceding n-gram
+    
+    # TODO: ngram_map is now a dict of tuples to counters
 
-def generate_text(prefix_length, text_length, title='emma.txt'):
-    '''
-    Generates random text using the specified number of prefixes.
-
-    prefix_length: int, the number of prefix words to use
-    text_length: int, the length of the random text
-    title: string, title of the source book
-
-    int, int -> str
-    '''
-    word_list = process_file(title, skip_header=True)
-    prefixes = prefix_map(word_list, prefix_length)
-    return list_to_string(random_text(prefixes, prefix_length, text_length))
-
-def list_to_string(word_list):
-    '''
-    Converts a list of words to a string, with spaces between each word and a 
-    period at the end.
-
-    word_list: list
-
-    list -> str
-    '''
-    s = ''
-    for word in word_list:
-        s = s + ('%s ' % word)
-    return (s.strip() + '.')
-
-def random_text(prefix_map, prefix_length, text_length):
-    '''
-    Returns a list of words randomly selected by prefix using the given 
-    prefix map.
-
-    # TODO: This looks messy, is there a better way than changing so many types?
-
-    prefix_map: dict of tuples to lists
-    prefix_length: int, the length (in words) of the sequence of prefixes to use
-    m: int, the length (in words) of the list of random words
+    Parameters
+        ngram_map : dict[tuple[str], Counter[str]]
+            
+        n : int
+            The length of the n-grams to consider.
+        text_length : int
+            The length (in words) of the list of random words
 
     dict, int, int -> list
-    '''
-    random_text = list(random.choice(list(prefix_map.keys())))
+    """
+    random_text = list(random.choice(list(ngram_map.keys())))
 
-    while (len(random_text) < text_length):
-        prefix = tuple(random_text[(len(random_text)-prefix_length):len(random_text)])
-        random_text.append(random.choice(prefix_map[prefix]))
+    while len(random_text) < text_length:
+        ngram = tuple(random_text[-n:])
+        # TODO: Change this line to randomly choose suffix from Counter
+        random_text.append(random.choice(ngram_map[ngram]))
 
-    return random_text
+    return ' '.join(random_text) + '.' # TODO: Maybe too much logic on this line
 
-def prefix_map(word_list, n):
-    '''
+def make_ngram_map(word_list, n):
+    """
+
     Takes a list of words and returns a dict mapping sequences of n words (which
     we call the prefixes) to a list of all next words (which we call the 
     suffixes).
 
-    word_list: list
-    n: int, the number of prefixes to consider
+    # TODO: Might be able to use collections.Counter() here:
+    (https://docs.python.org/3/library/collections.html#collections.Counter)
     
-    list, int -> dict
-    '''
-    ''' TODO: This doesn't do quite what I want but can't figure out why
-        prefix_map = {(''):{word_list[0]}} # First word follows nothing
-        if n > 1: # Map starting prefix sequences of length <n
-            for i in range(1, n):
-                prefix_seq = tuple(word_list[1:i])
-                prefix_map[prefix_seq] = {word_list[i]}
-    '''
-    prefix_map = {}
-    # Maps prefix n-tuples to suffix list
-    for prefix_start in range(0, len(word_list)-n):
-        prefix_seq = tuple(word_list[prefix_start:prefix_start+n]) 
-        suffix = word_list[prefix_start+n]
-        prefix_map[prefix_seq] = prefix_map.get(prefix_seq, []) + [suffix]
+    Parameters:
+        word_list : list[str]
+        
+        n: int
+            n-gram length (the number of preceding words to consider)
     
-    return prefix_map
+    Returns:
+        dict[tuple[str], Counter[str]]
+            A mapping of n-gram tuples to a collection of subsequent words.  
+    """
+    ngram_map = {}
+    
+    for part in funcy.partition(n + 1, 1, word_list):
+        ngram = tuple(part[0:-1])
+        suffix = part[-1]
+        suffix_map = (ngram_map.get(ngram, collections.Counter()))
+        suffix_map[suffix] += 1 # TODO: Don't like the mutation here
+        ngram_map[ngram] = suffix_map
+
+    return ngram_map
+
+def file_to_string(filename):
+    """Returns the given text file as a string, with no newlines.
+
+    Parameters:
+        filename : str
+            The name of the text file to get words from.
+    
+    Returns:
+        str
+            A string of the text file.
+    """
+    filestring = ''
+
+    fp = open(filename)
+
+    for line in fp:
+        filestring = filestring + line
+
+    return filestring
 
 # WARNING: skip_header=True only known to work with emma.txt
-def process_file(filename, skip_header):
-    """
-    (Taken from chapter 13 of ThinkPython, modified to return list)
-    Makes a list that contains the words from a file.
-
-    filename: string
-    skip_header: boolean, whether to skip the Gutenberg header
+def file_to_list(filename, use_words=True,  strip_line=True, skip_header=False):
+    """Creates a list of all words or characters in a file, in the same order.
+    
+    Parameters:
+        filename : str
+            The name of the text file to get words from.
+        use_words : bool
+            Whether to break the file up by word. If False, the file is broken 
+            up by character instead (default: True).
+        strip_line :
+            Whether to strip certain punctuation from the line before 
+            processing (default: True). Currently the only change by setting
+            this to False is that hyphen ("-") is not replaced by space (" "). 
+        skip_header : bool
+            Whether to skip the Gutenberg header (default: False).
    
-    returns: list of all words in the file in order of appearance
+    Returns: 
+        list[str]
+            A list of all words in the file in order of appearance.
     """
     word_list = []
-    fp = open(filename)
+    fp = open(filename) 
+    # TODO: Should i be using the with keyword instead? Do i need fp.close()?
+    # https://docs.python.org/3/tutorial/inputoutput.html#reading-and-writing-files
 
     if skip_header:
         skip_gutenberg_header(fp)
 
     for line in fp:
-        process_line(line, word_list)
+        print(str(line))
+        word_list = word_list + line_to_list(line, use_words, strip_line)
 
     return word_list
 
-# WARNING: This is only known to work with emma since Project Gutenberg books 
+def line_to_list(line, use_words=True, strip_line=True):
+    """Converts a line in a text file to a list of words, using str.split(). 
+
+    Taken from chapter 13 of ThinkPython.
+    I removed string.punctuation from strippables for the purpose of the Markov
+    analysis.
+
+    Parameters:
+        line : str
+            A string representing a line from a text file.
+        use_words : bool
+            Whether to break the line up by word. If False, the line is broken 
+            up by character instead (default: True).
+        strip_line :
+            Whether to strip certain punctuation from the line before 
+            processing (default: True). Currently the only change by setting
+            this to False is that hyphen ('-') is not replaced by space (' '). 
+
+    Returns:
+        list[str]
+            A list of words.
+    """
+    strippables = string.whitespace
+    line_list = []
+    
+    if strip_line:
+        line = line.replace('-', ' ')
+        strippables = string.whitespace # TODO: Can put more punctuation options
+
+    if use_words:
+        for word in line.split():
+            word = word.strip(strippables) # Remove punctuation
+            word = word.lower()
+            line_list = line_list + [word]
+    else:
+        line_list = list(line)
+
+    return line_list
+
+# WARNING: This is only known to work with emma since Project Gutenberg books
 #          do NOT have a standard header format.
 def skip_gutenberg_header(fp):
     """
@@ -189,32 +255,10 @@ def skip_gutenberg_header(fp):
     TODO: Some Project Gutenberg books have additional material after the book.
           Figure out how to skip that.
 
-    fp: open file object
+    Parameters:
+        fp : _io.TextIOWrapper
+            The text stream of the file we are reading.
     """
     for line in fp:
-        if line.startswith('*END*THE SMALL PRINT!'):
+        if line.startswith("*END*THE SMALL PRINT!"):
             break
-
-def process_line(line, word_list):
-    """
-    (Taken from chapter 13 of ThinkPython)
-    Adds the words in the line to the word list.
-    I removed string.punctuation from strippables for the purpose of the Markov
-    analysis.
-
-    Modifies word_list
-
-    line: string
-    word_list: list of words
-    """
-    line = line.replace('-', ' ') # replace hyphens with spaces before splitting
-    strippables = string.whitespace
-
-    for word in line.split():
-        # remove punctuation and convert to lowercase
-        word = word.strip(strippables)
-        word = word.lower()
-
-        # update the histogram
-        word_list.append(word)
-    
