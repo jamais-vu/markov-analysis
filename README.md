@@ -4,6 +4,15 @@ Generates random text in the style of a given corpus.
 This code is my solution to Exercise 13.8 of [*Think Python*](https://greenteapress.com/wp/think-python-2e/) 
 by Allen Downey, released under the [CC BY-NC 3.0](https://creativecommons.org/licenses/by-nc/3.0/) license.
 
+## Usage
+
+`mashup(n, text_length, *files)`
+
+Generates a string of random text of `text_length` words from user-specified text `*files`.
+Words are generated one by one, and each subsequent word is randomly chosen from 
+a probability distribution of which words in the source texts tend to follow the 
+previous `n` words (referred to as an [*n-gram*](https://en.wikipedia.org/wiki/N-gram)).
+
 ## Goals
 
 ### Exercise 13.8
