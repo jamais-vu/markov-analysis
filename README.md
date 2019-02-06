@@ -43,4 +43,6 @@ Some options:
   code so I know which parts are slowing it down.
   
 - Compare my original solution to my refactored solution, or to the 
-  [solution provided by the author](http://thinkpython2.com/code/markov.py)
+  [solution provided by the author](http://thinkpython2.com/code/markov.py),
+
+- Add an option for using characters as the n-gram items.
