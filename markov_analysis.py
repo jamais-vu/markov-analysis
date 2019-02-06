@@ -33,35 +33,9 @@
 """
 
 import random
-import string
 import funcy
 import collections
-
-
-"""
-    idea:
-    mapping of n-tuple (of n prefixes) to some collection that has suffixes with 
-    their respective frequencies
-
-    e.g. 
-
-    (p_1, p_2, ..., p_n) -> ((s_1, f_1), (s_2, f_2), ..., (s_n, f_n))
-    where the order of p matters
-    ideally the f_i's would be normalized but iirc doing that to randomly pick a 
-    float x between 0 and 1 might result in something not random, so i think i 
-    will go with the cumulative sum solution from the preview problem
-    another solution might be to just construct a list of each occurrence 
-
-    simple idea:
-    don't use word frequencies, just a set of suffixes
-    so the dict is a mapping P -> S 
-    (p_1, p_2, ..., p_n) -> (s_1, s_2, ..., s_n)
-
-    after finishing:
-    not sure why i ever thought of using a set of suffixes instead of a list,
-    since that would even preserve relative frequencies!
-"""
-
+import string
 
 def mashup(n, text_length, use_words, *files):
     """Generates a string of random words in the style of some given text files.
@@ -95,13 +69,11 @@ def mashup(n, text_length, use_words, *files):
     return generate_random_string(ngrams, n, text_length)
 
 def generate_random_string(ngram_map, n, text_length):
-    """Returns a string of words randomly selected by preceding n-gram
-    
-    # TODO: ngram_map is now a dict of tuples to counters
+    """Creates a string of words randomly chosen based on their preceding n-gram.
 
     Parameters
         ngram_map : dict[tuple[str], Counter[str]]
-            
+            A dict of n-gram tuples to suffix Counters.
         n : int
             The length of the n-grams to consider.
         text_length : int
@@ -109,30 +81,31 @@ def generate_random_string(ngram_map, n, text_length):
 
     dict, int, int -> list
     """
-    random_text = list(random.choice(list(ngram_map.keys())))
+    # Initialize text of length n with a random n-gram
+    random_text = list(random.choice(list(ngram_map.keys()))) 
 
     while len(random_text) < text_length:
-        ngram = tuple(random_text[-n:])
-        # TODO: Change this line to randomly choose suffix from Counter
-        random_text.append(random.choice(ngram_map[ngram]))
+        ngram = tuple(random_text[-n:]) # n-gram is last n items
+        suffix_counter = ngram_map[ngram] # Counter of suffix frequencies
+        # get zeroth item since random.choices() returns list even k=1 choices
+        random_suffix = random.choices(population=list(suffix_counter.keys()), 
+                                       weights=list(suffix_counter.values()))[0]
+        random_text.append(random_suffix)
 
-    return ' '.join(random_text) + '.' # TODO: Maybe too much logic on this line
+    random_text = ' '.join(random_text) + '.' # Space between words, period end.
+    return random_text
 
 def make_ngram_map(word_list, n):
-    """
+    """Creates a dict of n-gram tuples to suffix counters.
 
-    Takes a list of words and returns a dict mapping sequences of n words (which
-    we call the prefixes) to a list of all next words (which we call the 
-    suffixes).
+    The word_list is broken into partitions of length n+1. The first n words are
+    the n-gram, and the last word is the suffix. 
 
-    # TODO: Might be able to use collections.Counter() here:
-    (https://docs.python.org/3/library/collections.html#collections.Counter)
-    
     Parameters:
         word_list : list[str]
-        
+            The list of words from which to get n-grams.
         n: int
-            n-gram length (the number of preceding words to consider)
+            Length of the n-grams (number of words).
     
     Returns:
         dict[tuple[str], Counter[str]]
@@ -199,7 +172,6 @@ def file_to_list(filename, use_words=True,  strip_line=True, skip_header=False):
         skip_gutenberg_header(fp)
 
     for line in fp:
-        print(str(line))
         word_list = word_list + line_to_list(line, use_words, strip_line)
 
     return word_list
