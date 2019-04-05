@@ -152,7 +152,7 @@ def file_to_list(filename, use_words=True,  strip_line=True, skip_header=False):
         use_words : bool
             Whether to break the file up by word. If False, the file is broken 
             up by character instead (default: True).
-        strip_line :
+        strip_line : bool
             Whether to strip certain punctuation from the line before 
             processing (default: True). Currently the only change by setting
             this to False is that hyphen ("-") is not replaced by space (" "). 
@@ -189,7 +189,7 @@ def line_to_list(line, use_words=True, strip_line=True):
         use_words : bool
             Whether to break the line up by word. If False, the line is broken 
             up by character instead (default: True).
-        strip_line :
+        strip_line : bool
             Whether to strip certain punctuation from the line before 
             processing (default: True). Currently the only change by setting
             this to False is that hyphen ('-') is not replaced by space (' '). 
