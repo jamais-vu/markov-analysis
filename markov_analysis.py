@@ -75,47 +75,98 @@ def mashup(n, text_length, *files, use_words=True, user_choice=False):
     else:
         return generate_random_string(ngrams, n, text_length)
 
-def generate_random_string_with_choices(ngram_map, n, user_choice=True):
+def generate_random_string_with_choices(ngram_map, n):
     """Allows the user to choose from the list of potential suffixes.
-        TODO: Allow user to define initial text. (How do we handle cases where
-        initial text is not in the corpus?)
-        If there is only one choice for the next word it is chosen automatically.
+         
+    If there is only one choice for the next word it is chosen automatically.
+    TODO: There is probably a better way to handle user input than how I do it.
+    TODO: Allow user to define initial text. (How do we handle cases where
+    initial text is not in the corpus?)
+
+    Parameters:
+        ngram_map : Dict[Tuple[str], Counter[str]]
+            A dict of n-gram tuples to suffix Counters.
+        n : int
+            The length of the n-grams to consider.
     """
     random_text = list(random.choice(list(ngram_map.keys())))
     user_input = ''
     while True:
         ngram = tuple(random_text[-n:]) # n-gram is last n items
         suffix_counter = ngram_map[ngram] # Counter of suffix frequencies
-        suffix_choices = {str(i):pair for i, pair in enumerate(suffix_counter.items())}
 
         # Skip choosing the next word if there is only one possible suffix.
         if (len(suffix_counter) == 1):
             random_text.append(list(suffix_counter.keys())[0])
-            
+
         else:
-            print('\nRANDOM TEXT:\n' + ' '.join(map(str, random_text)) + '\n')
-            print('NEXT WORDS:\n' + str(suffix_choices))
+            # We use Counter.most_common() rather than Counter.items() so that 
+            # the words appear in descending order of frequency.
+            suffix_choices = {str(i):pair for i, pair in enumerate(suffix_counter.most_common())}
+            suffix_choices_string = suffix_choices_to_string(suffix_counter, suffix_choices)
+
+            # Display the text that has been written so far, and the choice of
+            # suffixes.
+            if (user_input != 'BAD_INPUT'):
+                print('\nRANDOM TEXT:\n' + ' '.join(map(str, random_text)))
+                print('\nNEXT WORDS:\n' + suffix_choices_string + '\n')
 
             user_input = input('Enter the number of the word you choose: ')
 
-            if (user_input == 'r') or (user_input == 'R'):
+            # The user enters 'r' or 'random' to select a random suffix.
+            if (user_input.lower() == 'r') or (user_input.lower() == 'random'):
                 random_suffix = random.choices(population=list(suffix_counter.keys()), 
                                            weights=list(suffix_counter.values()))[0]
+                print('You chose to randomly select the next word: "%s"' % random_suffix)
                 random_text.append(random_suffix)
             
-            elif (user_input == 'q') or (user_input == 'Q'):
+            # The user enters 'q' or 'quit' to quit the program.
+            elif (user_input.lower() == 'q') or (user_input.lower() == 'quit'):
+                print('Quitting program.')
                 break
 
+            # The user enters a number corresponding to a chosen suffix to add
+            # that suffix to the random text.
             elif user_input in suffix_choices:
-                random_text.append(suffix_choices[user_input][0])
+                chosen_suffix = suffix_choices[user_input][0]
+                print('You chose the next word: "%s"' % chosen_suffix)
+                random_text.append(chosen_suffix)
 
+            # If the user does not enter a number corresponding to one of the 
+            # suffixes, and did not enter the command to choose a random suffix
+            # or quit the program, we prompt the user to enter a valid command.
             else:
-                print('That isn\'t a valid choice.\n') # TODO Be more descriptive
+                print(user_input + ' is not a valid choice.\n')
+                print('To select the next word, enter the number corresponding'\
+                    ' to the word you choose.')
+                print('To have the next word chosen randomly, enter "r" or '\
+                    '"random".')
+                print('To quit, enter "q" or "quit".\n')
+                # We set user_input to 'BAD_INPUT' so that we do not print the 
+                # random text and suffix choices again. When I tested the 
+                # program I found this to be more user-friendly, since if the
+                # warning prompt is not the most recent visible text, the user
+                # may not immediately understand what happened, unless they have
+                # read or scrolled farther up.
+                user_input = 'BAD_INPUT'
+
+def suffix_choices_to_string(suffix_counter, suffix_choices):
+    """Creates a string representing the choices of the next word.
+    
+    TODO: If `enumerate()` always enumerates a Counter in the same order, we 
+          don't need to pass `suffix_choices` as an argument.
+    """
+    total_frequency = sum(suffix_counter.values())
+    s = ''
+    for number, word_frequency_pair in suffix_choices.items():
+        frequency = 100 * word_frequency_pair[1] / total_frequency # Percentage
+        s += '%s: "%s", %.1f%%\n' % (number, word_frequency_pair[0], frequency)
+    return s
 
 def generate_random_string(ngram_map, n, text_length):
     """Creates a string of words randomly chosen based on their preceding n-gram.
 
-    Parameters
+    Parameters:
         ngram_map : Dict[Tuple[str], Counter[str]]
             A dict of n-gram tuples to suffix Counters.
         n : int
