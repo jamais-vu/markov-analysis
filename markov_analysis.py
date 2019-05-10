@@ -37,7 +37,7 @@ import funcy
 import collections
 import string
 
-def mashup(n, text_length, use_words, *files):
+def mashup(n, text_length, *files, use_words=True, user_choice=False):
     """Generates a string of random words in the style of some given text files.
 
     Generates a string of random text of text_length words from user-specified 
@@ -55,6 +55,8 @@ def mashup(n, text_length, use_words, *files):
             True will use words, False will use characters. 
         files: str
             The filename(s) of the source text(s).
+        user_choice : bool
+            Whether the user selects the next word.
     
     Returns:
         str
@@ -66,22 +68,66 @@ def mashup(n, text_length, use_words, *files):
         #          do NOT have a standard header format
         word_list = word_list + file_to_list(file, skip_header=False)
     ngrams = make_ngram_map(word_list, n)
-    return generate_random_string(ngrams, n, text_length)
+    
+    # TODO: This is very bad style. Break this function up.
+    if user_choice:
+        generate_random_string_with_choices(ngrams, n)
+    else:
+        return generate_random_string(ngrams, n, text_length)
+
+def generate_random_string_with_choices(ngram_map, n, user_choice=True):
+    """Allows the user to choose from the list of potential suffixes.
+        TODO: Allow user to define initial text. (How do we handle cases where
+        initial text is not in the corpus?)
+        If there is only one choice for the next word it is chosen automatically.
+    """
+    random_text = list(random.choice(list(ngram_map.keys())))
+    user_input = ''
+    while True:
+        ngram = tuple(random_text[-n:]) # n-gram is last n items
+        suffix_counter = ngram_map[ngram] # Counter of suffix frequencies
+        suffix_choices = {str(i):pair for i, pair in enumerate(suffix_counter.items())}
+
+        # Skip choosing the next word if there is only one possible suffix.
+        if (len(suffix_counter) == 1):
+            random_text.append(list(suffix_counter.keys())[0])
+            
+        else:
+            print('\nRANDOM TEXT:\n' + ' '.join(map(str, random_text)) + '\n')
+            print('NEXT WORDS:\n' + str(suffix_choices))
+
+            user_input = input('Enter the number of the word you choose: ')
+
+            if (user_input == 'r') or (user_input == 'R'):
+                random_suffix = random.choices(population=list(suffix_counter.keys()), 
+                                           weights=list(suffix_counter.values()))[0]
+                random_text.append(random_suffix)
+            
+            elif (user_input == 'q') or (user_input == 'Q'):
+                break
+
+            elif user_input in suffix_choices:
+                random_text.append(suffix_choices[user_input][0])
+
+            else:
+                print('That isn\'t a valid choice.\n') # TODO Be more descriptive
 
 def generate_random_string(ngram_map, n, text_length):
     """Creates a string of words randomly chosen based on their preceding n-gram.
 
     Parameters
-        ngram_map : dict[tuple[str], Counter[str]]
+        ngram_map : Dict[Tuple[str], Counter[str]]
             A dict of n-gram tuples to suffix Counters.
         n : int
             The length of the n-grams to consider.
         text_length : int
             The length (in words) of the list of random words
 
-    dict, int, int -> list
+    Returns:
+        str
     """
     # Initialize text of length n with a random n-gram
+    # TODO: This feels messy. Is there a better way to choose a random n-gram?
     random_text = list(random.choice(list(ngram_map.keys()))) 
 
     while len(random_text) < text_length:
@@ -108,7 +154,7 @@ def make_ngram_map(word_list, n):
             Length of the n-grams (number of words).
     
     Returns:
-        dict[tuple[str], Counter[str]]
+        Dict[Tuple[str], Counter[str]]
             A mapping of n-gram tuples to a collection of subsequent words.  
     """
     ngram_map = {}
@@ -189,7 +235,7 @@ def line_to_list(line, use_words=True, strip_line=True):
         use_words : bool
             Whether to break the line up by word. If False, the line is broken 
             up by character instead (default: True).
-        strip_line : bool
+        strip_line :
             Whether to strip certain punctuation from the line before 
             processing (default: True). Currently the only change by setting
             this to False is that hyphen ('-') is not replaced by space (' '). 
